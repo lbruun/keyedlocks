@@ -1,6 +1,6 @@
 # Keyed Locks
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/net.lbruun/keyedlocks/badge.svg)](https://maven-badges.herokuapp.com/maven-central/net.lbruun/keyedlocks)
-[![javadoc](https://javadoc.io/badge2/net.lbruun/keyedlocks/javadoc.svg)](https://javadoc.io/doc/net.lbruun/keyedlocks) 
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/net.lbruun.keyedlocks/keyedlocks/badge.svg)](https://maven-badges.herokuapp.com/maven-central/net.lbruun.keyedlocks/keyedlocks)
+[![javadoc](https://javadoc.io/badge2/net.lbruun.keyedlocks/keyedlocks/javadoc.svg)](https://javadoc.io/doc/net.lbruun.keyedlocks/keyedlocks)
 
 Utility for key-based locking.
 
@@ -38,7 +38,7 @@ Library is available on Maven Central:
 
 ```xml
 <dependency>
-    <groupId>net.lbruun</groupId>
+    <groupId>net.lbruun.keyedlocks</groupId>
     <artifactId>keyedlocks</artifactId>
     <version>  --LATEST--  </version>
 </dependency>
@@ -55,10 +55,10 @@ try (LockToken lockToken = customerLocks.lock(someAnimal)) {
 }  // lock is auto-released
 ```
 
-There are more options. See the [JavaDoc](https://javadoc.io/doc/net.lbruun/keyedlocks).
+There are more options. See the [JavaDoc](https://javadoc.io/doc/net.lbruun.keyedlocks/keyedlocks).
 
 
 ## Documentation
 
-For in-depth documentation see [JavaDoc](https://javadoc.io/doc/net.lbruun/keyedlocks).
+For in-depth documentation see [JavaDoc](https://javadoc.io/doc/net.lbruun.keyedlocks/keyedlocks).
 
