@@ -294,7 +294,7 @@ public abstract class KeyedLocks<T> {
          * <p>
          * Similar to {@link ReentrantLock#unlock()} except that it cannot throw {@link IllegalMonitorStateException} as
          * a given LockToken implies a lock successfully acquired. (as long as this method is called on the same
-         * thread which acquired the {@code LockToken} object instance .. but {@LockToken}s should not be passed
+         * thread which acquired the {@code LockToken} object instance .. but {@code LockToken}s should not be passed
          * between threads)
          *
          * @throws IllegalStateException if the method is called more than once
