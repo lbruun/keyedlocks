@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Per-key locking mechanism.
+ * Per-key locking mechanism. An instance of this class is a factory for locks for a given object type, {@code T}.
  *
  * <p>
  * Locks are obtained based on a key so that only keys of the same value (object value equality) will compete for the
@@ -146,6 +146,29 @@ public abstract class KeyedLocks<T> {
     }
 
     /**
+     * Acquires a lock specific to objects which equals the supplied instance, {@code key},
+     * but allows the current thread to be interruped while waiting for the lock.
+     *
+     * <p>
+     * The method has similar characteristics as {@link ReentrantLock#lockInterruptibly()}.
+     *
+     * @param key the value to obtain a lock for (must be non-null)
+     * @return token which must be used to unlock
+     * @throws NullPointerException if {@code key} is null
+     * @throws InterruptedException if the current thread was interrupted while waiting for the lock to be available.
+     */
+    public final LockToken<T> lockInterruptibly(T key) throws InterruptedException {
+        LockWrapper<T> lockWrapper = getLockWrapper(key);
+        try {
+            lockWrapper.lock.lockInterruptibly();
+            return new LockToken<>(lockWrapper);
+        } catch (InterruptedException ex) {
+            lockWrapper.purgeCacheEntryIfUnused();
+            throw ex;
+        }
+    }
+
+    /**
      * Acquires a lock specific to objects which equals the supplied instance, {@code key}, if the lock is free within
      * the given time limit and the current thread has not been interrupted.
      *
@@ -169,30 +192,30 @@ public abstract class KeyedLocks<T> {
      *
      * @param key      the value to obtain a lock for (must be non-null)
      * @param time     the maximum time to wait for the lock
-     * @param timeUnit the time unit of the {@code time} argument
-     * @return token which must be used to unlock (empty if the lock could not be acquired within the time limit or if
-     * the thread was interrupted)
-     * @throws InterruptedException if the current thread is interrupted
-     * @throws NullPointerException if {@code key} is null
+     * @param timeUnit the time unit of the {@code time} argument (must be non-null)
+     * @return token which must be used to unlock (empty if the lock could not be acquired within the time limit)
+     * @throws InterruptedException if the current thread was interrupted while waiting for the lock to be available
+     * @throws NullPointerException if {@code key} is null or {@code timeUnit} is null
      */
     public final Optional<LockToken<T>> tryLock(T key, long time, TimeUnit timeUnit) throws InterruptedException {
 
         LockWrapper<T> lockWrapper = getLockWrapper(key);
+        Objects.requireNonNull(timeUnit, "timeUnit must be non-null");
+
         try {
             if (lockWrapper.lock.tryLock(time, timeUnit)) {
                 return Optional.of(new LockToken<>(lockWrapper));
+            } else {
+                // Lock could not be acquired within the time limit. The lock is not held by us.
+                // We are now no longer a current "consumer" of this lock so decrement
+                // usage count and ultimately remove the lock from the cache.
+                lockWrapper.purgeCacheEntryIfUnused();
+                return Optional.empty();
             }
         } catch (InterruptedException e) {
             lockWrapper.purgeCacheEntryIfUnused();
             throw e;
         }
-
-        // Lock could not be acquired within the time limit or we were interrupted
-        // while waiting. In any case, the lock is not held by us.
-        // We are now no longer a current "consumer" of this lock so decrement
-        // usage count and ultimately remove the lock from the cache.
-        lockWrapper.purgeCacheEntryIfUnused();
-        return Optional.empty();
     }
 
     // For testing purpose
@@ -251,11 +274,11 @@ public abstract class KeyedLocks<T> {
     }
 
     /**
-     * Token representing an acquired lock. Use this token to unlock the lock when it is no longer needed. The token has
-     * no other purpose.
+     * Token representing an acquired lock. Use the token to unlock the lock when the lock hold is no longer needed.
+     * The token has no other purpose than this.
      *
      * <p>
-     * The token is for one-time use and should not be shared between threads.
+     * The token is for one-time use and must not be shared between threads.
      */
     public static final class LockToken<T> implements AutoCloseable {
         private final LockWrapper<T> parent;
@@ -269,8 +292,10 @@ public abstract class KeyedLocks<T> {
          * Releases the lock.
          *
          * <p>
-         * Similar to {@link ReentrantLock#unlock()} except that it never throws {@link IllegalMonitorStateException} as
-         * a given LockToken implies a lock successfully acquired.
+         * Similar to {@link ReentrantLock#unlock()} except that it cannot throw {@link IllegalMonitorStateException} as
+         * a given LockToken implies a lock successfully acquired. (as long as this method is called on the same
+         * thread which acquired the {@code LockToken} object instance .. but {@LockToken}s should not be passed
+         * between threads)
          *
          * @throws IllegalStateException if the method is called more than once
          */
