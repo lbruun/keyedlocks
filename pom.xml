@@ -30,7 +30,7 @@ limitations under the License.
     </properties>
 
 
-    <url>https://github.com/lbruun/HexUtils</url>
+    <url>https://github.com/lbruun/keyedlocks</url>
 
     <description>
 	    Lock implementation with per-key locks.
