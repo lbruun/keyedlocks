@@ -1,0 +1,79 @@
+= Keyed Locks
+
+image:https://maven-badges.herokuapp.com/maven-central/net.lbruun.keyedlocks/keyedlocks/badge.svg[Maven Central,link=https://maven-badges.herokuapp.com/maven-central/net.lbruun.keyedlocks/keyedlocks]
+image:https://javadoc.io/badge2/net.lbruun.keyedlocks/keyedlocks/javadoc.svg[javadoc,link=https://javadoc.io/doc/net.lbruun.keyedlocks/keyedlocks]
+
+Utility for key-based locking.
+
+Key-based locking means that only keys of the same value will compete for the same lock. This allows
+for fine-grained locking mechanism which can improve the throughput of an application.
+
+This implementation is based on `ReentrantLock` and is therefore Virtual Threads friendly.
+
+== Use case
+
+Suppose we want processing of something to be serialized (one-by-one processing) based on object value
+equality, for example we would like processing of customers to be serialized, so that for a given customer,
+only one action is executed at a time. An attempt may look like this:
+
+[source,java]
+----
+public void processCustomer(Customer customer, Consumer<Customer> action) {
+    syncronized (customer) {
+        // do the operation 
+        action.accept(customer);
+    }
+}
+
+----
+
+There are two problems with the above approach:
+
+* It is based on the `syncronized` keyword which means it is not Virtual Threads friendly.
+* The locking is based on object reference equality rather than based on object value equality.
+
+This is what `KeyedLocks` aims to solve. See "Usage" section for how the example above
+would be solved with `KeyedLocks`,
+
+Note that `KeyedLocks` has less obvious use cases than what you may think at first. It may be useful as
+a means to not overburden an external service with concurrent competing mutation requests for the same object value,
+some of which the external service would (hopefully - if correctly implemented) reject with an optimistic locking failure.
+In this scenario, `KeyedLocks` may be able to save some network round trips and possibly lower the likelihood
+of API throttling.
+
+== Usage
+
+Library is available on Maven Central:
+
+[source,xml]
+----
+<dependency>
+    <groupId>net.lbruun.keyedlocks</groupId>
+    <artifactId>keyedlocks</artifactId>
+    <version>  --LATEST--  </version>
+</dependency>
+----
+
+Then use like this:
+
+[source,java]
+----
+// Create a lock factory. This is likely a singleton in the application.
+final KeyedLocks<Customer> customerLocks = KeyedLocks.create(Customer.class, true);
+
+// Obtain a LockToken and use it to guard a piece of code
+try (LockToken lockToken = customerLocks.lock(customer)) {
+   // Perform action guarded by the lock
+
+}  // lock is auto-released
+----
+
+The idiom above guarantees that for the same customer (value equality) the action inside the try-with-resources
+will never overlap in time. 
+
+There are more options, for example wait-with-timeout.
+See the https://javadoc.io/doc/net.lbruun.keyedlocks/keyedlocks[JavaDoc].
+
+== Documentation
+
+For in-depth documentation see https://javadoc.io/doc/net.lbruun.keyedlocks/keyedlocks[JavaDoc].
